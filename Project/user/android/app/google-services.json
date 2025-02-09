@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "369094962831",
+    "project_id": "spare2025-f92f1",
+    "storage_bucket": "spare2025-f92f1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:369094962831:android:5a6919d817b72785cd8afa",
+        "android_client_info": {
+          "package_name": "com.example.user"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD3hkjrtXa5KoO-fpdg8-p_qDdJ0EFQMuw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
