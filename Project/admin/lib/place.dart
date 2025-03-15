@@ -45,6 +45,7 @@ class _PlaceState extends State<Place> {
       });
 
       print("Data inserted");
+      fetchdata();
       _placeController.clear();
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text('Inserted successufully')));

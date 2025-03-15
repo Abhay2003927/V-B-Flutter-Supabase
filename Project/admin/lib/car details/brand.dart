@@ -1,170 +1,177 @@
 import 'package:admin/main.dart';
 import 'package:flutter/material.dart';
- 
-class brand extends StatefulWidget {
-  const brand({super.key});
+
+class Brand extends StatefulWidget {
+  const Brand({super.key});
 
   @override
-  State<brand> createState() => _brandState();
+  State<Brand> createState() => _BrandState();
 }
 
-class _brandState extends State<brand> {
+class _BrandState extends State<Brand> {
+  final _formKey = GlobalKey<FormState>();
+  final _brandController = TextEditingController();
+  List<Map<String, dynamic>> _fetchedBrands = [];
+  int _editId = 0;
 
-  final formkey =GlobalKey<FormState>();
-
-  TextEditingController brand=TextEditingController();
-  List<Map<String,dynamic>> fetchdbrand =[];
-
-   @override
+  @override
   void initState() {
     super.initState();
-    fetchdata();
+    _fetchData();
   }
 
-  Future<void>insert()async
-  {
-    try {
-      await supabase.from("tbl_brand").insert({'brand_name':brand.text});
-      fetchdata();
-      print("inserted");
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text("Data inserted successfully")));
-      
-    } catch (e) {
-      print("Error $e");
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("insert Failed:$e")));
-      
+  Future<void> _insertBrand() async {
+    if (_formKey.currentState!.validate()) {
+      try {
+        await supabase.from("tbl_brand").insert({'brand_name': _brandController.text});
+        _fetchData();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Data inserted successfully")),
+        );
+        _brandController.clear();
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Insert Failed: $e")),
+        );
+      }
     }
   }
-   Future<void> fetchdata() async {
+
+  Future<void> _fetchData() async {
     try {
       final response = await supabase.from("tbl_brand").select();
       setState(() {
-        fetchdbrand = response;
+        _fetchedBrands = response;
       });
-    } catch (e) {}
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error fetching data: $e")),
+      );
+    }
   }
-Future<void>delete(int id )async{
-  try {
-    await supabase.from('tbl_brand').delete().eq('id', id);
-    fetchdata();
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Deleted"),));
-    
-  } catch (e) {
-    print("Error Deleting $e");
-    
+
+  Future<void> _deleteBrand(int id) async {
+    try {
+      await supabase.from('tbl_brand').delete().eq('id', id);
+      _fetchData();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Deleted")),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error deleting: $e")),
+      );
+    }
   }
-}
- int editId = 0; 
- 
-  Future<void> update() async { 
-    try { 
-      await supabase.from("tbl_brand").update({ 
-        "brand_name":brand.text 
-      }).eq('id', editId); 
-      fetchdata(); 
-      brand.clear(); 
-      setState(() { 
-        editId=0; 
-      }); 
-    } catch (e) { 
-       
-    } 
+
+  Future<void> _updateBrand() async {
+    if (_formKey.currentState!.validate()) {
+      try {
+        await supabase.from("tbl_brand").update({
+          "brand_name": _brandController.text,
+        }).eq('id', _editId);
+        _fetchData();
+        _brandController.clear();
+        setState(() {
+          _editId = 0;
+        });
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error updating: $e")),
+        );
+      }
+    }
   }
+
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: EdgeInsets.symmetric(
-        vertical: 50,
-        horizontal: 80
-      ),
+      padding: const EdgeInsets.symmetric(vertical: 50, horizontal: 80),
       children: [
         Form(
-          key: formkey,
+          key: _formKey,
           child: Center(
-          child: Row(
-            children: [
-              
-              Expanded(
-                child: TextFormField(
-                  controller: brand,
-                  decoration: InputDecoration(
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10)
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: _brandController,
+                    decoration: InputDecoration(
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      label: const Text("Brand"),
+                      hintText: 'Please enter the brand',
+                      fillColor: Colors.white,
+                      filled: true,
                     ),
-                    label: Text("Brand"),
-                    hintText: 'please enter the Brand',
-                    fillColor: Colors.white,
-                    filled: true,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Please enter a brand name';
+                      }
+                      return null;
+                    },
                   ),
                 ),
-              ),
-              ElevatedButton(onPressed: (){
-                if(editId==0){
-                insert();
-                }
-                else{
-                  update();
-                }
-                
-              }, child: Text("submit"))
-            ],
+                const SizedBox(width: 10),
+                ElevatedButton(
+                  onPressed: () {
+                    if (_editId == 0) {
+                      _insertBrand();
+                    } else {
+                      _updateBrand();
+                    }
+                  },
+                  child: const Text("Submit"),
+                ),
+              ],
+            ),
           ),
         ),
-        
-        ),
-
-        SizedBox(height: 20,),
+        const SizedBox(height: 20),
         Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
-          color: Colors.white,
+            color: Colors.white,
           ),
-          margin: EdgeInsets.all(20),
-          padding: EdgeInsets.all(20),
+          margin: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(20),
           child: ListView.separated(
-            
-            separatorBuilder: (context, index) {
-              return Divider();
-            },
-              shrinkWrap: true,
-                itemCount: fetchdbrand.length,
-                itemBuilder: (context, index) {
-                final _brand= fetchdbrand[index];
-                 
-                return ListTile(
-
-                  leading:Text( 
-                    _brand['brand_name'],
-                  style: TextStyle(fontWeight: FontWeight.w900,fontSize: 20),
-                  ),
-                  trailing: SizedBox(
-                    width: 80,
-                    child: Row(
-                      children: [
-                        IconButton(onPressed: (){
-                          delete(_brand['id']);
-                        }, 
-                        icon: Icon(Icons.delete_forever_outlined)),
-                    
-                    
-                        IconButton(onPressed: (){
+            separatorBuilder: (context, index) => const Divider(),
+            shrinkWrap: true,
+            itemCount: _fetchedBrands.length,
+            itemBuilder: (context, index) {
+              final brand = _fetchedBrands[index];
+              return ListTile(
+                leading: Text(
+                  brand['brand_name'],
+                  style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 20),
+                ),
+                trailing: SizedBox(
+                  width: 80,
+                  child: Row(
+                    children: [
+                      IconButton(
+                        onPressed: () => _deleteBrand(brand['id']),
+                        icon: const Icon(Icons.delete_forever_outlined),
+                      ),
+                      IconButton(
+                        onPressed: () {
                           setState(() {
-                            brand.text=_brand['brand_name'];
-                            editId=_brand['id'];
+                            _brandController.text = brand['brand_name'];
+                            _editId = brand['id'];
                           });
-                        }, icon:Icon(Icons.edit))
-                      ],
-                    ),
+                        },
+                        icon: const Icon(Icons.edit),
+                      ),
+                    ],
                   ),
-                  
-                  
-                );
-              },),
-        )
-      ]
-        
-               );
-               
-        
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
   }
 }

@@ -5,10 +5,8 @@ import 'package:admin/car%20details/transmission.dart';
 import 'package:admin/car%20details/type.dart';
 import 'package:admin/car%20details/year.dart';
 import 'package:admin/category.dart';
- 
 import 'package:admin/district.dart';
 import 'package:admin/place.dart';
- 
 import 'package:flutter/material.dart';
 
 class Homepage extends StatefulWidget {
@@ -21,8 +19,7 @@ class Homepage extends StatefulWidget {
 class _HomepageState extends State<Homepage> {
   int selectedIndex = 0;
 
-  List<String> pageName = [
-     
+  final List<String> pageName = [
     'Category',
     'District',
     'Place',
@@ -32,11 +29,9 @@ class _HomepageState extends State<Homepage> {
     'Year',
     'Engine',
     'Type',
-
   ];
 
-  List<IconData> pageIcon = [
-     
+  final List<IconData> pageIcon = [
     Icons.category,
     Icons.location_city,
     Icons.place,
@@ -46,39 +41,38 @@ class _HomepageState extends State<Homepage> {
     Icons.date_range,
     Icons.engineering,
     Icons.type_specimen,
-     
   ];
 
-  List<Widget> pageContent = [
-    
-    
+  final List<Widget> pageContent = [
     Category(),
     District(),
     Place(),
-    brand(),
-    Model(),
+    Brand(),
+    ModelScreen(),
     transmission(),
     year(),
     Engine(),
     TypeScreen(),
-     
-    
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Admin Dashboard'),
-        backgroundColor: const Color.fromARGB(255, 248, 103, 6),
-     
+        title: const Text(
+          'Admin Dashboard',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20,color: Colors.white,),
+        ),
+        backgroundColor: Colors.blueGrey[900],
+        centerTitle: true,
+        elevation: 4,
       ),
       body: Row(
         children: [
           Expanded(
             flex: 1,
             child: Container(
-              color: const Color.fromARGB(255, 126, 143, 156),
+              color: Colors.blueGrey[800],
               child: ListView.builder(
                 shrinkWrap: false,
                 itemCount: pageName.length,
@@ -86,12 +80,25 @@ class _HomepageState extends State<Homepage> {
                   return ListTile(
                     onTap: () {
                       setState(() {
-                        print(index);
                         selectedIndex = index;
                       });
                     },
-                    leading: Icon(pageIcon[index]),
-                    title: Text(pageName[index]),
+                    leading: Icon(
+                      pageIcon[index],
+                      color: selectedIndex == index ? Colors.orange : Colors.white,
+                    ),
+                    title: Text(
+                      pageName[index],
+                      style: TextStyle(
+                        color: selectedIndex == index ? Colors.orange : Colors.white,
+                        fontWeight: selectedIndex == index ? FontWeight.bold : FontWeight.normal,
+                      ),
+                    ),
+                    tileColor: selectedIndex == index
+                        ? Colors.blueGrey[700]
+                        : Colors.transparent,
+                    selected: selectedIndex == index,
+                    selectedTileColor: Colors.blueGrey[700],
                   );
                 },
               ),
@@ -101,14 +108,20 @@ class _HomepageState extends State<Homepage> {
             flex: 5,
             child: Container(
               decoration: BoxDecoration(
-                image: DecorationImage(image: AssetImage("assets/sper.jpeg"),fit: BoxFit.cover
+                image: const DecorationImage(
+                  image: AssetImage("assets/sper.jpeg"),
+                  fit: BoxFit.cover,
                 ),
-                
+                color: Colors.white.withOpacity(0.8),
+                borderRadius: BorderRadius.circular(10),
               ),
-              child: pageContent[selectedIndex],
-              
+              padding: const EdgeInsets.all(20),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: pageContent[selectedIndex],
+              ),
             ),
-          )
+          ),
         ],
       ),
     );

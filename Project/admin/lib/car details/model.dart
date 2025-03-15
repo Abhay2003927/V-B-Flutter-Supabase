@@ -1,34 +1,33 @@
-import 'package:admin/car%20details/brand.dart';
 import 'package:admin/main.dart';
 import 'package:flutter/material.dart';
 
-class Model extends StatefulWidget {
-  const Model({super.key});
+class ModelScreen extends StatefulWidget {
+  const ModelScreen({super.key});
 
   @override
-  State<Model> createState() => _modelState();
+  State<ModelScreen> createState() => _ModelScreenState();
 }
 
-class _modelState extends State<Model> {
+class _ModelScreenState extends State<ModelScreen> {
   final formkey = GlobalKey<FormState>();
   final TextEditingController _modelController = TextEditingController();
   List<Map<String, dynamic>> brandList = [];
   List<Map<String, dynamic>> modelList = [];
-  List<Map<String,dynamic>>typeList=[];
+  List<Map<String,dynamic>>  typeList = [];
+
   bool isLoading = false;
   @override
   void initState() {
-    
     super.initState();
-    fetchDist();
+    fetchBrand();
     fetchdata();
+    fetchtype();
   }
 
-  Future<void> fetchDist() async {
+  Future<void> fetchBrand() async {
     try {
-      print("Model");
-      final response = await supabase.from('tbl_model').select();
-      print(response);
+      final response = await supabase.from('tbl_brand').select();
+      print("Model: $response");
       setState(() {
         brandList = response;
       });
@@ -37,16 +36,33 @@ class _modelState extends State<Model> {
     }
   }
 
-  String? selectedDistrict;
+   Future<void> fetchtype() async {
+    try {
+      final response = await supabase.from('tbl_type').select();
+      print("Model: $response");
+      setState(() {
+        typeList = response;
+      });
+    } catch (e) {
+      print("Error fetching model: $e");
+    }
+  }
+
+  String? selectedbrand;
+  String? selectedtype;
 
   Future<void> insert() async {
     try {
       await supabase.from("tbl_model").insert({
         'model_name': _modelController.text,
-        'brand_id': selectedbrand
+        'brand_id': selectedbrand,
+        'type_id': selectedtype,
       });
 
       print("Data inserted");
+      fetchBrand();
+      fetchdata();
+      fetchtype();
       _modelController.clear();
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text('Inserted successufully')));
@@ -124,19 +140,42 @@ class _modelState extends State<Model> {
                               border: OutlineInputBorder(),
                               fillColor: Colors.white,
                               filled: true,
-                              hintText: 'Model'),
-                          value: selectedDistrict,
-                          items: brandList.map((district) {
+                              hintText: 'Brand'),
+                          value: selectedbrand,
+                          items: brandList.map((brand) {
                             return DropdownMenuItem(
                                 value: brand['id'].toString(),
-                                child: Text(brand['brand_name']));
+                                child: Text(brand['brand_name'] ?? ""));
                           }).toList(),
                           onChanged: (value) {
                             setState(() {
-                              selectedDistrict = value!;
+                              selectedbrand = value!;
                             });
                           }),
+                        
                     ),
+                    SizedBox(
+                      width: 10,
+                    ),Expanded(
+                      
+                      child: DropdownButtonFormField(
+                          decoration: InputDecoration(
+                              border: OutlineInputBorder(),
+                              fillColor: Colors.white,
+                              filled: true,
+                              hintText: 'Type'),
+                          value: selectedtype,
+                          items: typeList.map((Type) {
+                            return DropdownMenuItem(
+                                value:Type ['id'].toString(),
+                                child: Text(Type['type_name'] ?? ""));
+                          }).toList(),
+                          onChanged: (value) {
+                            setState(() {
+                              selectedtype = value!;
+                            });
+                          }), ),
+                    
                     SizedBox(
                       width: 10,
                     ),
@@ -167,7 +206,7 @@ class _modelState extends State<Model> {
                 ),
               )),
         ),
-        
+
         SizedBox(
           height: 40,
         ),
@@ -181,24 +220,23 @@ class _modelState extends State<Model> {
                   horizontal: 40,
                 ),
                 child: Container(
-                  decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-          color: Colors.white54,
-          ),
-                     
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(20),
+                      color: Colors.white54,
+                    ),
                     padding: EdgeInsets.all(20),
                     child: ListView.separated(
                         separatorBuilder: (context, index) {
                           return Divider();
                         },
                         shrinkWrap: true,
-                        itemCount: placeList.length,
+                        itemCount: modelList.length,
                         itemBuilder: (context, index) {
-                          final _place = placeList[index];
+                          final _model = modelList[index];
                           return ListTile(
                               leading: Text(
                                 style: TextStyle(fontSize: 18),
-                                _place['place_name'],
+                                _model['model_name'] ?? "",
                               ),
                               trailing: SizedBox(
                                 width: 80,
@@ -206,15 +244,15 @@ class _modelState extends State<Model> {
                                   children: [
                                     IconButton(
                                         onPressed: () {
-                                          delete(_place['id']);
+                                          delete(_model['id']);
                                         },
                                         icon: Icon(Icons.delete_outline)),
                                     IconButton(
                                         onPressed: () {
                                           setState(() {
                                             _modelController.text =
-                                                _modelController['model_name'];
-                                            edit = _place['id'];
+                                                _model['model_name'];
+                                            edit = _model['id'];
                                           });
                                         },
                                         icon: Icon(Icons.edit))
