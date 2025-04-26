@@ -1,6 +1,7 @@
 import 'package:admin/main.dart';
 import 'package:flutter/material.dart';
- 
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 class Engine extends StatefulWidget {
   const Engine({super.key});
 
@@ -9,162 +10,278 @@ class Engine extends StatefulWidget {
 }
 
 class _EngineState extends State<Engine> {
+  final _formKey = GlobalKey<FormState>();
+  final _engineController = TextEditingController();
+  List<Map<String, dynamic>> _fetchedEngines = [];
+  int _editId = 0;
+  bool _isLoading = false;
 
-  final formkey =GlobalKey<FormState>();
-
-  TextEditingController Engine=TextEditingController();
-  List<Map<String,dynamic>> fetchengine =[];
-
-   @override
+  @override
   void initState() {
     super.initState();
-    fetchdata();
+    _fetchData();
   }
 
-  Future<void>insert()async
-  {
-    try {
-      await supabase.from("tbl_engine").insert({'engine_name':Engine.text});
-      fetchdata();
-      print("inserted");
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text("Data inserted successfully")));
-      
-    } catch (e) {
-      print("Error $e");
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("insert Failed:$e")));
-      
+  Future<void> _insertEngine() async {
+    if (_formKey.currentState!.validate()) {
+      setState(() => _isLoading = true);
+      try {
+        await supabase.from("tbl_engine").insert({'engine_name': _engineController.text});
+        await _fetchData();
+        _engineController.clear();
+        _showSuccess('Engine inserted successfully');
+      } catch (e) {
+        _showError('Insert Failed: $e');
+      } finally {
+        setState(() => _isLoading = false);
+      }
     }
   }
-   Future<void> fetchdata() async {
+
+  Future<void> _fetchData() async {
     try {
       final response = await supabase.from("tbl_engine").select();
       setState(() {
-        fetchengine = response;
+        _fetchedEngines = List<Map<String, dynamic>>.from(response);
       });
-    } catch (e) {}
+    } catch (e) {
+      _showError('Error fetching engines: $e');
+    }
   }
-Future<void>delete(int id )async{
-  try {
-    await supabase.from('tbl_engine').delete().eq('id', id);
-    fetchdata();
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Deleted"),));
-    
-  } catch (e) {
-    print("Error Deleting $e");
-    
+
+  Future<void> _deleteEngine(int id) async {
+    setState(() => _isLoading = true);
+    try {
+      await supabase.from('tbl_engine').delete().eq('id', id);
+      await _fetchData();
+      _showSuccess('Engine deleted successfully');
+    } catch (e) {
+      _showError('Error deleting engine: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
   }
-}
- int editId = 0; 
- 
-  Future<void> update() async { 
-    try { 
-      await supabase.from("tbl_engine").update({ 
-        "engine_name":Engine.text 
-      }).eq('id', editId); 
-      fetchdata(); 
-      Engine.clear(); 
-      setState(() { 
-        editId=0; 
-      }); 
-    } catch (e) { 
-       
-    } 
+
+  Future<void> _updateEngine() async {
+    if (_formKey.currentState!.validate()) {
+      setState(() => _isLoading = true);
+      try {
+        await supabase.from("tbl_engine").update({
+          "engine_name": _engineController.text,
+        }).eq('id', _editId);
+        await _fetchData();
+        _engineController.clear();
+        setState(() => _editId = 0);
+        _showSuccess('Engine updated successfully');
+      } catch (e) {
+        _showError('Error updating engine: $e');
+      } finally {
+        setState(() => _isLoading = false);
+      }
+    }
   }
+
+  void _showSuccess(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), backgroundColor: Colors.green),
+      );
+    }
+  }
+
+  void _showError(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), backgroundColor: Colors.red),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: EdgeInsets.symmetric(
-        vertical: 50,
-        horizontal: 80
-      ),
-      children: [
-        Form(
-          key: formkey,
-          child: Center(
-          child: Row(
-            children: [
-              
-              Expanded(
-                child: TextFormField(
-                  controller: Engine,
-                  decoration: InputDecoration(
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10)
+    final screenWidth = MediaQuery.of(context).size.width;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Form Section
+          Container(
+            width: screenWidth > 800 ? 600 : screenWidth * 0.9,
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.2),
+                  blurRadius: 15,
+                  spreadRadius: 5,
+                ),
+              ],
+            ),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Manage Engines',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blueGrey,
                     ),
-                    label: Text("Engine"),
-                    hintText: 'please enter the Engine',
-                    fillColor: Colors.white,
-                    filled: true,
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller: _engineController,
+                          decoration: InputDecoration(
+                            labelText: 'Engine Name',
+                            hintText: 'Enter engine name',
+                            prefixIcon: const Icon(Icons.engineering, color: Colors.blueGrey),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            filled: true,
+                            fillColor: Colors.grey[100],
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: const BorderSide(color: Colors.blueGrey, width: 2),
+                            ),
+                          ),
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return 'Please enter an engine name';
+                            }
+                            return null;
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      ElevatedButton(
+                        onPressed: _isLoading ? null : (_editId == 0 ? _insertEngine : _updateEngine),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blueGrey[700],
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        child: _isLoading
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                              )
+                            : Text(
+                                _editId == 0 ? 'Add Engine' : 'Update Engine',
+                                style: const TextStyle(color: Colors.white, fontSize: 16),
+                              ),
+                      ),
+                    ],
+                  ),
+                  if (_editId != 0)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: TextButton(
+                        onPressed: () {
+                          setState(() {
+                            _engineController.clear();
+                            _editId = 0;
+                          });
+                        },
+                        child: const Text('Cancel Edit', style: TextStyle(color: Colors.red)),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          // Engines List Section
+          Container(
+            width: screenWidth > 800 ? 600 : screenWidth * 0.9,
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.2),
+                  blurRadius: 15,
+                  spreadRadius: 5,
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Engine List',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blueGrey,
                   ),
                 ),
-              ),
-              ElevatedButton(onPressed: (){
-                if(editId==0){
-                insert();
-                }
-                else{
-                  update();
-                }
-                
-              }, child: Text("submit"))
-            ],
+                const SizedBox(height: 16),
+                _fetchedEngines.isEmpty
+                    ? Center(
+                        child: Text(
+                          'No engines found',
+                          style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                        ),
+                      )
+                    : ListView.separated(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        separatorBuilder: (context, index) => const Divider(height: 1, color: Colors.grey),
+                        itemCount: _fetchedEngines.length,
+                        itemBuilder: (context, index) {
+                          final engine = _fetchedEngines[index];
+                          return ListTile(
+                            contentPadding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                            leading: Text(
+                              engine['engine_name'],
+                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blueGrey),
+                            ),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.edit, color: Colors.blueGrey),
+                                  onPressed: () {
+                                    setState(() {
+                                      _engineController.text = engine['engine_name'];
+                                      _editId = engine['id'];
+                                    });
+                                  },
+                                  tooltip: 'Edit',
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete, color: Colors.red),
+                                  onPressed: () => _deleteEngine(engine['id']),
+                                  tooltip: 'Delete',
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+              ],
+            ),
           ),
-        ),
-        
-        ),
+        ],
+      ),
+    );
+  }
 
-        SizedBox(height: 20,),
-        Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20),
-          color: Colors.white,
-          ),
-          margin: EdgeInsets.all(20),
-          padding: EdgeInsets.all(20),
-          child: ListView.separated(
-            
-            separatorBuilder: (context, index) {
-              return Divider();
-            },
-              shrinkWrap: true,
-                itemCount: fetchengine.length,
-                itemBuilder: (context, index) {
-                final _engine= fetchengine[index];
-                 
-                return ListTile(
-
-                  leading:Text( 
-                    _engine['engine_name'],
-                  style: TextStyle(fontWeight: FontWeight.w900,fontSize: 20),
-                  ),
-                  trailing: SizedBox(
-                    width: 80,
-                    child: Row(
-                      children: [
-                        IconButton(onPressed: (){
-                          delete(_engine['id']);
-                        }, 
-                        icon: Icon(Icons.delete_forever_outlined)),
-                    
-                    
-                        IconButton(onPressed: (){
-                          setState(() {
-                            Engine.text=_engine['engine_name'];
-                            editId=_engine['id'];
-                          });
-                        }, icon:Icon(Icons.edit))
-                      ],
-                    ),
-                  ),
-                  
-                  
-                );
-              },),
-        )
-      ]
-        
-               );
-               
-        
+  @override
+  void dispose() {
+    _engineController.dispose();
+    super.dispose();
   }
 }

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:seller/homepage.dart';
-import 'package:seller/main.dart';
-import 'dart:io';
-import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
+import 'package:seller/login.dart';
+import 'package:seller/main.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class Registationscreen extends StatefulWidget {
   const Registationscreen({super.key});
@@ -13,22 +13,58 @@ class Registationscreen extends StatefulWidget {
 }
 
 class _RegistationscreenState extends State<Registationscreen> {
-  TextEditingController snameController = TextEditingController();
-  TextEditingController semailController = TextEditingController();
-  TextEditingController scontactController = TextEditingController();
-  TextEditingController saddressController = TextEditingController();
-  TextEditingController spasswordController = TextEditingController();
-  TextEditingController sconfirmPasswordController = TextEditingController();
-  TextEditingController sphotoController = TextEditingController();
-  TextEditingController sproofController = TextEditingController();
-  final formkey = GlobalKey<FormState>();
+  final TextEditingController snameController = TextEditingController();
+  final TextEditingController semailController = TextEditingController();
+  final TextEditingController scontactController = TextEditingController();
+  final TextEditingController saddressController = TextEditingController();
+  final TextEditingController spasswordController = TextEditingController();
+  final TextEditingController sconfirmPasswordController = TextEditingController();
+  final TextEditingController sphotoController = TextEditingController();
+  final TextEditingController sproofController = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
   PlatformFile? pickedImage;
   PlatformFile? pickedProof;
+  bool _isLoading = false;
+  bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
 
-  // Handle File Upload Process
+  String? selectedPlace;
+  String? selectedDist;
+  List<Map<String, dynamic>> placeList = [];
+  List<Map<String, dynamic>> distList = [];
+
+  @override
+  void initState() {
+    super.initState();
+    fetchDistrict();
+  }
+
+  Future<void> fetchDistrict() async {
+    try {
+      final response = await supabase.from('tbl_district').select();
+      setState(() => distList = response);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error fetching districts: $e')),
+      );
+    }
+  }
+
+  Future<void> fetchPlace(String id) async {
+    try {
+      final response = await supabase.from('tbl_place').select().eq('district_id', id);
+      setState(() => placeList = response);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error fetching places: $e')),
+      );
+    }
+  }
+
   Future<void> handleImagePick() async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
-      allowMultiple: false, // Only single file upload
+      allowMultiple: false,
+      type: FileType.image,
     );
     if (result != null) {
       setState(() {
@@ -40,7 +76,8 @@ class _RegistationscreenState extends State<Registationscreen> {
 
   Future<void> handleProofPick() async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
-      allowMultiple: false, // Only single file upload
+      allowMultiple: false,
+      type: FileType.any,
     );
     if (result != null) {
       setState(() {
@@ -50,61 +87,25 @@ class _RegistationscreenState extends State<Registationscreen> {
     }
   }
 
-  Future<String?> photoUpload(String uid, String type) async {
+  Future<String?> photoUpload(String uid, String type, PlatformFile? file) async {
+    if (file == null) return null;
     try {
-      final bucketName = 'shop'; // Replace with your bucket name
-      final filePath = "$uid-$type-${pickedImage!.name}";
-      await supabase.storage.from(bucketName).uploadBinary(
-            filePath,
-            pickedImage!.bytes!, // Use file.bytes for Flutter Web
-          );
-      final publicUrl =
-          supabase.storage.from(bucketName).getPublicUrl(filePath);
-      // await updateImage(uid, publicUrl);
-      return publicUrl;
+      final bucketName = 'shop';
+      final filePath = "$uid-$type-${file.name}";
+      await supabase.storage.from(bucketName).uploadBinary(filePath, file.bytes!);
+      return supabase.storage.from(bucketName).getPublicUrl(filePath);
     } catch (e) {
-      print("Error photo upload: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Upload error: $e')),
+      );
       return null;
-    }
-  }
-
-  List<Map<String, dynamic>> placeList = [];
-  List<Map<String, dynamic>> distList = [];
-  @override
-  void initState() {
-    super.initState();
-    fetchplace();
-    fetchtdistrict();
-  }
-
-  Future<void> fetchplace() async {
-    try {
-      final response = await supabase.from('tbl_place').select();
-      print("Place: $response");
-      setState(() {
-        placeList = response;
-      });
-    } catch (e) {
-      // print("Error fetching place: $e");
-    }
-  }
-
-  Future<void> fetchtdistrict() async {
-    try {
-      final response = await supabase.from('tbl_district').select();
-      print("District: $response");
-      setState(() {
-        distList = response;
-      });
-    } catch (e) {
-      // print("Error fetching district: $e");
     }
   }
 
   Future<void> insert(String uid) async {
     try {
-      String? photoUrl = await photoUpload(uid, 'photo');
-      String? proofUrl = await photoUpload(uid, 'proof');
+      final photoUrl = await photoUpload(uid, 'photo', pickedImage);
+      final proofUrl = await photoUpload(uid, 'proof', pickedProof);
       await supabase.from('tbl_seller').insert({
         'id': uid,
         'seller_name': snameController.text,
@@ -112,279 +113,218 @@ class _RegistationscreenState extends State<Registationscreen> {
         'seller_contact': scontactController.text,
         'seller_address': saddressController.text,
         'seller_password': spasswordController.text,
-        'place_id': selectedplace,
+        'place_id': selectedPlace,
         'seller_photo': photoUrl,
         'seller_proof': proofUrl,
       });
-
-      print("Inserted ");
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text("Inserted successfully")));
-      Navigator.pushReplacement(
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Registration successful")),
+        );
+        Navigator.pushReplacement(
           context,
-          MaterialPageRoute(
-            builder: (context) => SHomepagescreen(),
-          ));
+          MaterialPageRoute(builder: (context) => const Loginscreen()),
+        );
+      }
     } catch (e) {
-      print("Error $e");
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Error founder $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Registration error: $e')),
+        );
+      }
     }
   }
 
-  Future<void> reg() async {
+  Future<void> register() async {
+    if (!_formKey.currentState!.validate()) return;
+    if (spasswordController.text != sconfirmPasswordController.text) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Passwords do not match")),
+      );
+      return;
+    }
+    setState(() => _isLoading = true);
     try {
-      final Authentication = await supabase.auth.signUp(
-          password: spasswordController.text, email: semailController.text);
-      String uid = Authentication.user!.id;
-      insert(uid);
+      final authResponse = await supabase.auth.signUp(
+        password: spasswordController.text,
+        email: semailController.text,
+      );
+      if (authResponse.user != null) {
+        await insert(authResponse.user!.id);
+      }
     } catch (e) {
-      print("Error $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Sign-up error: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
-
-  String? selectedplace;
-  String? selecteddist;
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+
     return Scaffold(
       body: Container(
-        height: double.infinity,
-        decoration: BoxDecoration(
-            image: DecorationImage(
-                image: AssetImage('assets/loginimage.jpg'), fit: BoxFit.cover)),
-        child: Container(
-          decoration: BoxDecoration(color: const Color.fromARGB(182, 0, 0, 0)),
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/loginimage.jpg'),
+            fit: BoxFit.cover,
+            colorFilter: ColorFilter.mode(Colors.black54, BlendMode.darken),
+          ),
+        ),
+        child: Center(
           child: SingleChildScrollView(
-            child: Form(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 500),
+            child: Container(
+              width: screenWidth > 800 ? 600 : screenWidth * 0.9,
+              padding: const EdgeInsets.all(32),
+              margin: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 10,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
+              ),
+              child: Form(
+                key: _formKey,
                 child: Column(
-                 mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    SizedBox(
-                      height: 50,
+                    const Text(
+                      "Join Our Seller Community",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 28,
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                    Text(
-                      "Join Us Our Seller Community",
-                      style: TextStyle(fontSize: 25, color: Colors.red),
-                    ),
-            
+                    const SizedBox(height: 24),
                     TextFormField(
                       controller: snameController,
-                      style: TextStyle(color: Colors.white),
-                      decoration: InputDecoration(
-                          suffixIcon: Icon(Icons.alternate_email,color: Colors.white,),
-                          focusedBorder: UnderlineInputBorder(
-                              borderSide:
-                                  BorderSide(color: Colors.white54, width: 2)),
-                          enabledBorder: UnderlineInputBorder(
-                              borderSide: BorderSide(color: Colors.white)),
-                          labelText: " Full Name",
-                          labelStyle: TextStyle(color: Colors.white),
-                          border: UnderlineInputBorder()),
+                      style: const TextStyle(color: Colors.white),
+                      decoration: _inputDecoration("Full Name", Icons.person),
+                      validator: (value) => value!.isEmpty ? "Name is required" : null,
                     ),
-                    SizedBox(
-                      height: 15,
-                    ),
-                    //  Text("PassWord"),
-            
+                    const SizedBox(height: 16),
                     TextFormField(
                       controller: scontactController,
-                      style: TextStyle(color: Colors.white),
-                      decoration: InputDecoration(
-                          suffixIcon: Icon(Icons.numbers,color: Colors.white,),
-                          focusedBorder: UnderlineInputBorder(
-                              borderSide:
-                                  BorderSide(color: Colors.white54, width: 2)),
-                          enabledBorder: UnderlineInputBorder(
-                              borderSide: BorderSide(color: Colors.white)),
-                          labelText: " Mobile Number",
-                          labelStyle: TextStyle(color: Colors.white),
-                          border: UnderlineInputBorder()),
+                      style: const TextStyle(color: Colors.white),
+                      keyboardType: TextInputType.phone,
+                      decoration: _inputDecoration("Mobile Number", Icons.phone),
+                      validator: (value) => value!.length < 10 ? "Enter a valid phone number" : null,
                     ),
-                    SizedBox(
-                      height: 15,
-                    ),
-            
+                    const SizedBox(height: 16),
                     TextFormField(
                       controller: semailController,
-                      style: TextStyle(color: Colors.white),
-                      decoration: InputDecoration(
-                          suffixIcon: Icon(Icons.attach_email,color: Colors.white,),
-                          focusedBorder: UnderlineInputBorder(
-                              borderSide:
-                                  BorderSide(color: Colors.white54, width: 2)),
-                          enabledBorder: UnderlineInputBorder(
-                              borderSide: BorderSide(color: Colors.white)),
-                          labelText: 'Email',
-                          labelStyle: TextStyle(color: Colors.white),
-                          border: UnderlineInputBorder()),
+                      style: const TextStyle(color: Colors.white),
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: _inputDecoration("Email", Icons.email),
+                      validator: (value) => !RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value ?? "")
+                          ? "Enter a valid email"
+                          : null,
                     ),
-                    SizedBox(
-                      height: 15,
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      dropdownColor: Colors.grey[800],
+                      decoration: _inputDecoration("District", Icons.location_on),
+                      value: selectedDist,
+                      items: distList.map((district) => DropdownMenuItem(
+                        value: district['id'].toString(),
+                        child: Text(district['district_name'] ?? "", style: const TextStyle(color: Colors.white)),
+                      )).toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          selectedDist = value;
+                          selectedPlace = null;
+                          placeList = [];
+                        });
+                        if (value != null) fetchPlace(value);
+                      },
+                      validator: (value) => value == null ? "Select a district" : null,
                     ),
-            
-                    DropdownButtonFormField(
-                       dropdownColor: Colors.black,
-                        decoration: InputDecoration(
-                          focusedBorder: UnderlineInputBorder(
-                              borderSide:
-                                  BorderSide(color: Colors.white54, width: 2)),
-                          enabledBorder: UnderlineInputBorder(
-                              borderSide: BorderSide(color: Colors.white)),
-                          labelText: 'District',
-                          labelStyle: TextStyle(color: Colors.white),
-                        ),
-                        value: selecteddist,
-                        items: distList.map((district) {
-                          return DropdownMenuItem(
-                              value: district['id'].toString(),
-                              child: Text(district['district_name'] ?? "", style: TextStyle(color: Colors.white),));
-                        }).toList(),
-                        onChanged: (value) {
-                          setState(() {
-                            selecteddist = value!;
-                          });
-                        }),
-            
-                    SizedBox(
-                      height: 15,
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      dropdownColor: Colors.grey[800],
+                      decoration: _inputDecoration("Place", Icons.place),
+                      value: selectedPlace,
+                      items: placeList.map((place) => DropdownMenuItem(
+                        value: place['id'].toString(),
+                        child: Text(place['place_name'] ?? "", style: const TextStyle(color: Colors.white)),
+                      )).toList(),
+                      onChanged: (value) => setState(() => selectedPlace = value),
+                      validator: (value) => value == null ? "Select a place" : null,
                     ),
-            
-                    DropdownButtonFormField(
-                       dropdownColor: Colors.black,
-                        decoration: InputDecoration(
-                          focusedBorder: UnderlineInputBorder(
-                              borderSide:
-                                  BorderSide(color: Colors.white54, width: 2)),
-                          enabledBorder: UnderlineInputBorder(
-                              borderSide: BorderSide(color: Colors.white)),
-                          labelText: 'Place',
-                          labelStyle: TextStyle(color: Colors.white),
-                        ),
-                        value: selectedplace,
-                        items: placeList.map((place) {
-                          return DropdownMenuItem(
-                              value: place['id'].toString(),
-                              child: Text(place['place_name'], style: TextStyle(color: Colors.white),));
-                        }).toList(),
-                        onChanged: (value) {
-                          setState(() {
-                            selectedplace = value!;
-                          });
-                        }),
-                    SizedBox(
-                      height: 15,
-                    ),
-            
+                    const SizedBox(height: 16),
                     TextFormField(
                       controller: saddressController,
-                      style: TextStyle(color: Colors.white),
-                      decoration: InputDecoration(
-                          suffixIcon: Icon(Icons.location_city,color: Colors.white,),
-                          focusedBorder: UnderlineInputBorder(
-                              borderSide:
-                                  BorderSide(color: Colors.white54, width: 2)),
-                          enabledBorder: UnderlineInputBorder(
-                              borderSide: BorderSide(color: Colors.white)),
-                          labelText: " Address",
-                          labelStyle: TextStyle(color: Colors.white),
-                          border: UnderlineInputBorder()),
+                      style: const TextStyle(color: Colors.white),
+                      decoration: _inputDecoration("Address", Icons.home),
+                      validator: (value) => value!.isEmpty ? "Address is required" : null,
                     ),
-                    SizedBox(
-                      height: 15,
-                    ),
-            
-            
-                     TextFormField(
+                    const SizedBox(height: 16),
+                    TextFormField(
                       readOnly: true,
                       onTap: handleImagePick,
                       controller: sphotoController,
-                      style: TextStyle(color: Colors.white),
-                      decoration: InputDecoration(
-                          suffixIcon: Icon(Icons.photo,color: Colors.white,),
-                          focusedBorder: UnderlineInputBorder(
-                              borderSide:
-                                  BorderSide(color: Colors.white54, width: 2)),
-                          enabledBorder: UnderlineInputBorder(
-                              borderSide: BorderSide(color: Colors.white)),
-                          labelText: 'Photo',
-                          labelStyle: TextStyle(color: Colors.white),
-                          border: UnderlineInputBorder()),
+                      style: const TextStyle(color: Colors.white),
+                      decoration: _inputDecoration("Photo", Icons.photo),
+                      validator: (value) => value!.isEmpty ? "Photo is required" : null,
                     ),
-            
-                    SizedBox(
-                      height: 15,
-                    ),
+                    const SizedBox(height: 16),
                     TextFormField(
                       readOnly: true,
                       onTap: handleProofPick,
                       controller: sproofController,
-                      style: TextStyle(color: Colors.white),
-                      decoration: InputDecoration(
-                          suffixIcon: Icon(Icons.open_in_browser,color: Colors.white,),
-                          focusedBorder: UnderlineInputBorder(
-                              borderSide:
-                                  BorderSide(color: Colors.white54, width: 2)),
-                          enabledBorder: UnderlineInputBorder(
-                              borderSide: BorderSide(color: Colors.white)),
-                          labelText: 'Proof',
-                          labelStyle: TextStyle(color: Colors.white),
-                          border: UnderlineInputBorder()),
+                      style: const TextStyle(color: Colors.white),
+                      decoration: _inputDecoration("Proof", Icons.verified),
+                      validator: (value) => value!.isEmpty ? "Proof is required" : null,
                     ),
-            
-            
-                    SizedBox(
-                      height: 15,
-                    ),
-            
+                    const SizedBox(height: 16),
                     TextFormField(
                       controller: spasswordController,
-                      style: TextStyle(color: Colors.white),
-                      decoration: InputDecoration(
-                          suffixIcon: Icon(Icons.security,color: Colors.white,),
-                          focusedBorder: UnderlineInputBorder(
-                              borderSide:
-                                  BorderSide(color: Colors.white54, width: 2)),
-                          enabledBorder: UnderlineInputBorder(
-                              borderSide: BorderSide(color: Colors.white)),
-                          labelText: "Enter Your Password",
-                          labelStyle: TextStyle(color: Colors.white),
-                          border: UnderlineInputBorder()),
+                      style: const TextStyle(color: Colors.white),
+                      obscureText: _obscurePassword,
+                      decoration: _inputDecoration("Password", Icons.lock).copyWith(
+                        suffixIcon: IconButton(
+                          icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility, color: Colors.white70),
+                          onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                        ),
+                      ),
+                      validator: (value) => value!.length < 6 ? "Password must be at least 6 characters" : null,
                     ),
-                    SizedBox(
-                      height: 15,
-                    ),
+                    const SizedBox(height: 16),
                     TextFormField(
                       controller: sconfirmPasswordController,
-                      style: TextStyle(color: Colors.white),
-                      decoration: InputDecoration(
-                          suffixIcon: Icon(Icons.security,color: Colors.white,),
-                          focusedBorder: UnderlineInputBorder(
-                              borderSide:
-                                  BorderSide(color: Colors.white54, width: 2)),
-                          enabledBorder: UnderlineInputBorder(
-                              borderSide: BorderSide(color: Colors.white)),
-                          labelText: "Enter Your  confirmPassword",
-                          labelStyle: TextStyle(color: Colors.white),
-                          border: UnderlineInputBorder()),
+                      style: const TextStyle(color: Colors.white),
+                      obscureText: _obscureConfirmPassword,
+                      decoration: _inputDecoration("Confirm Password", Icons.lock).copyWith(
+                        suffixIcon: IconButton(
+                          icon: Icon(_obscureConfirmPassword ? Icons.visibility_off : Icons.visibility, color: Colors.white70),
+                          // tonew
+                          onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
+                        ),
+                      ),
+                      validator: (value) => value!.isEmpty ? "Confirm your password" : null,
                     ),
-                    SizedBox(
-                      height: 15,
+                    const SizedBox(height: 32),
+                    ElevatedButton(
+                      onPressed: _isLoading ? null : register,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blueAccent,
+                        minimumSize: const Size(double.infinity, 50),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      child: _isLoading
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : const Text("Sign Up", style: TextStyle(fontSize: 18, color: Colors.white)),
                     ),
-            
-                     Center(
-                    child: ElevatedButton(
-                        onPressed: () {
-                          reg();
-                        },
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 15.0),
-                          child: Text("Sign up"),
-                        )),
-                  ),
                   ],
                 ),
               ),
@@ -393,5 +333,36 @@ class _RegistationscreenState extends State<Registationscreen> {
         ),
       ),
     );
+  }
+
+  InputDecoration _inputDecoration(String label, IconData icon) {
+    return InputDecoration(
+      labelText: label,
+      labelStyle: const TextStyle(color: Colors.white70),
+      filled: true,
+      fillColor: Colors.white.withOpacity(0.1),
+      prefixIcon: Icon(icon, color: Colors.white70),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: Colors.blueAccent, width: 2),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    snameController.dispose();
+    semailController.dispose();
+    scontactController.dispose();
+    saddressController.dispose();
+    spasswordController.dispose();
+    sconfirmPasswordController.dispose();
+    sphotoController.dispose();
+    sproofController.dispose();
+    super.dispose();
   }
 }

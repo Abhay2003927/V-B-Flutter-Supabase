@@ -1,6 +1,7 @@
  
  
 import 'package:admin/homepage.dart';
+import 'package:admin/login.dart';
  
  
  
@@ -26,9 +27,39 @@ class MainApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return const MaterialApp(
       debugShowCheckedModeBanner: false,
-      home:Homepage(
-         
-      ),
+      home: AuthWrapper(),
     );
   }
+}
+
+class AuthWrapper extends StatelessWidget {
+
+  const AuthWrapper({super.key});
+
+
+
+  @override
+
+  Widget build(BuildContext context) {
+
+    // Check if the user is logged in
+
+    final session = supabase.auth.currentSession;
+
+
+
+    // Navigate to the appropriate screen based on the authentication state
+
+    if (session != null) {
+
+      return  Homepage(); // Replace with your home screen widget
+
+    } else {
+
+      return Login(); // Replace with your auth page widget
+
+    }
+
+  }
+
 }

@@ -12,20 +12,25 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  TextEditingController emailController = TextEditingController();
-  TextEditingController passwordController = TextEditingController();
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+  bool isLoading = false;
+  bool obscurePassword = true;
 
-  void _signin() async {
+  Future<void> _signin() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => isLoading = true);
     try {
-      String email = emailController.text;
-      String PassWord = passwordController.text;
       final AuthResponse res = await supabase.auth.signInWithPassword(
-        email: email,
-        password: PassWord,
+        email: emailController.text.trim(),
+        password: passwordController.text,
       );
+      print(res.user);
 
-      final User? user = res.user;
-      if (user != null) {
+
+      if (res.user != null) {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => const Homepagescreen()),
@@ -33,137 +38,238 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Error during sign in.please try again")),
+        SnackBar(
+          content: Text("Error during sign-in: ${e.toString()}"),
+          backgroundColor: Colors.red[600],
+          behavior: SnackBarBehavior.floating,
+        ),
       );
+    } finally {
+      setState(() => isLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Form(
-          child: Container(
-        decoration: BoxDecoration(
-            image: DecorationImage(
-                image: AssetImage('assets/loginimage.jpg'), fit: BoxFit.cover)),
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/loginimage.jpg'),
+            fit: BoxFit.cover,
+          ),
+        ),
         child: Container(
-          decoration: BoxDecoration(color: const Color.fromARGB(182, 0, 0, 0)),
-          child: Padding(
-            padding: const EdgeInsets.all(25.0),
-            child: ListView(
-              children: [
-                SizedBox(
-                  height: 200,
-                ),
-                CircleAvatar(
-                  backgroundImage: AssetImage('assets/loginimage.jpg'),
-                  radius: 50,
-                ),
-                SizedBox(
-                  height: 50,
-                ),
-                Text(
-                  "Welcome Back",
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 45,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                SizedBox(
-                  height: 10,
-                ),
-                Text(
-                  "We Are Always Happy To Serve You !",
-                  style: TextStyle(
-                      fontSize: 25,
-                      color: const Color.fromARGB(255, 229, 227, 226)),
-                       textAlign: TextAlign.center,
-                ),
-                SizedBox(
-                  height: 50,
-                ),
-                TextFormField(
-                  controller: emailController,
-                  style: TextStyle(color: Colors.white),
-                  decoration: InputDecoration(
-                      suffixIcon: Icon(Icons.alternate_email,  color:Colors.white ,),
-                      
-                      focusedBorder: UnderlineInputBorder(
-                          borderSide:
-                              BorderSide(color: Colors.white54, width: 2)),
-                      enabledBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(color: Colors.white)),
-                      hintText: "Enter Your Email",
-                      hintStyle: TextStyle(color: Colors.white),
-                      border: UnderlineInputBorder()),
-                ),
-                SizedBox(
-                  height: 30,
-                ),
-                //  Text("PassWord"),
-      
-                TextFormField(
-                  controller: passwordController,
-                  style: TextStyle(color: Colors.white),
-                  decoration: InputDecoration(
-                      focusedBorder: UnderlineInputBorder(
-                          borderSide:
-                              BorderSide(color: Colors.white54, width: 2)),
-                      enabledBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(color: Colors.white)),
-                      suffixIcon: Icon(Icons.lock_open,color: Colors.white,),
-                      
-                      hintText: "Enter Your Password",
-                      hintStyle: TextStyle(color: Colors.white),
-                      border: OutlineInputBorder()),
-                ),
-                SizedBox(
-                  height: 30,
-                ),
-                Center(
-                  child: ElevatedButton(
-                      onPressed: () {
-                        _signin();
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 15.0),
-                        child: Text("Sign In"),
-                      )),
-                ),
-                SizedBox(
-                  height: 30,
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      "Don't have an account ?",
-                      style: TextStyle(color: Colors.white),
-                    ),
-                    SizedBox(
-                      width: 5,
-                    ),
-                    GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => Registation(),
-                              )); //
-                        },
-                        child: Text(
-                          'Register now',
-                          style: TextStyle(color: Colors.white),
-                        ))
-                  ],
-                )
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.black.withOpacity(0.3),
+                Colors.black.withOpacity(0.7),
               ],
             ),
           ),
+          child: SafeArea(
+            child: Form(
+              key: _formKey,
+              child: ListView(
+                padding: const EdgeInsets.all(25.0),
+                children: [
+                  const SizedBox(height: 80), // Adjusted height for logo
+                  // Adjustable Logo Widget
+                  Center(
+                    child: Container(
+                      padding: const EdgeInsets.all(5), // Padding around logo
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle, // Makes the logo circular
+                        color: Colors.white.withOpacity(0.2), // Background color
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.3),
+                            blurRadius: 10,
+                            offset: const Offset(0, 5),
+                          ),
+                        ],
+                      ),
+                      child: ClipOval(
+                        child: Image.asset(
+                          'assets/download.jpg', // Replace with your logo file name
+                          height: 120, // Adjustable height
+                          width: 120,  // Adjustable width
+                          fit: BoxFit.contain, // Ensures the logo fits within bounds
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 30), // Space between logo and text
+                  const Text(
+                    "Welcome Back",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 36,
+                      height: 1.2,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    "We are always happy to serve you!",
+                    style: TextStyle(
+                      fontSize: 18,
+                      color: Colors.white.withOpacity(0.9),
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 50),
+                  TextFormField(
+                    controller: emailController,
+                    style: const TextStyle(color: Colors.white),
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: InputDecoration(
+                      hintText: "Enter your email",
+                      hintStyle: TextStyle(color: Colors.white.withOpacity(0.7)),
+                      prefixIcon: const Icon(Icons.alternate_email, color: Colors.white),
+                      filled: true,
+                      fillColor: Colors.white.withOpacity(0.1),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.red[800]!, width: 2),
+                      ),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return "Please enter your email";
+                      }
+                      if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
+                        return "Please enter a valid email";
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 20),
+                  TextFormField(
+                    controller: passwordController,
+                    style: const TextStyle(color: Colors.white),
+                    obscureText: obscurePassword,
+                    decoration: InputDecoration(
+                      hintText: "Enter your password",
+                      hintStyle: TextStyle(color: Colors.white.withOpacity(0.7)),
+                      prefixIcon: const Icon(Icons.lock_open, color: Colors.white),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          obscurePassword ? Icons.visibility_off : Icons.visibility,
+                          color: Colors.white,
+                        ),
+                        onPressed: () {
+                          setState(() => obscurePassword = !obscurePassword);
+                        },
+                      ),
+                      filled: true,
+                      fillColor: Colors.white.withOpacity(0.1),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.red[800]!, width: 2),
+                      ),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return "Please enter your password";
+                      }
+                      if (value.length < 6) {
+                        return "Password must be at least 6 characters";
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 30),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: isLoading ? null : _signin,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red[800],
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 4,
+                      ),
+                      child: isLoading
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : const Text(
+                              "Sign In",
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        "Don't have an account? ",
+                        style: TextStyle(color: Colors.white.withOpacity(0.9)),
+                      ),
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const Registation()),
+                          );
+                        },
+                        child: Text(
+                          "Register now",
+                          style: TextStyle(
+                            color: Colors.red[800],
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
-      )),
+      ),
     );
   }
+
+  @override
+  void dispose() {
+    emailController.dispose();
+    passwordController.dispose();
+    super.dispose();
+  }
+}
+
+void main() {
+  runApp(const MaterialApp(
+    home: LoginScreen(),
+    debugShowCheckedModeBanner: false,
+  ));
 }

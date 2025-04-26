@@ -1,5 +1,6 @@
 import 'package:admin/main.dart';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ModelScreen extends StatefulWidget {
   const ModelScreen({super.key});
@@ -9,259 +10,373 @@ class ModelScreen extends StatefulWidget {
 }
 
 class _ModelScreenState extends State<ModelScreen> {
-  final formkey = GlobalKey<FormState>();
-  final TextEditingController _modelController = TextEditingController();
-  List<Map<String, dynamic>> brandList = [];
-  List<Map<String, dynamic>> modelList = [];
-  List<Map<String,dynamic>>  typeList = [];
+  final _formKey = GlobalKey<FormState>();
+  final _modelController = TextEditingController();
+  List<Map<String, dynamic>> _modelList = [];
+  List<Map<String, dynamic>> _brandList = [];
+  List<Map<String, dynamic>> _typeList = [];
+  String? _selectedBrand;
+  String? _selectedType;
+  int _editId = 0;
+  bool _isLoading = false;
 
-  bool isLoading = false;
   @override
   void initState() {
     super.initState();
-    fetchBrand();
-    fetchdata();
-    fetchtype();
+    _fetchBrands();
+    _fetchTypes();
+    _fetchModels();
   }
 
-  Future<void> fetchBrand() async {
+  Future<void> _fetchBrands() async {
     try {
       final response = await supabase.from('tbl_brand').select();
-      print("Model: $response");
       setState(() {
-        brandList = response;
+        _brandList = List<Map<String, dynamic>>.from(response);
       });
     } catch (e) {
-      print("Error fetching model: $e");
+      _showError('Error fetching brands: $e');
     }
   }
 
-   Future<void> fetchtype() async {
+  Future<void> _fetchTypes() async {
     try {
       final response = await supabase.from('tbl_type').select();
-      print("Model: $response");
       setState(() {
-        typeList = response;
+        _typeList = List<Map<String, dynamic>>.from(response);
       });
     } catch (e) {
-      print("Error fetching model: $e");
+      _showError('Error fetching types: $e');
     }
   }
 
-  String? selectedbrand;
-  String? selectedtype;
-
-  Future<void> insert() async {
+  Future<void> _fetchModels() async {
+    setState(() => _isLoading = true);
     try {
-      await supabase.from("tbl_model").insert({
-        'model_name': _modelController.text,
-        'brand_id': selectedbrand,
-        'type_id': selectedtype,
-      });
-
-      print("Data inserted");
-      fetchBrand();
-      fetchdata();
-      fetchtype();
-      _modelController.clear();
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Inserted successufully')));
-    } catch (e) {
-      print('Error $e');
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Error found in insert $e')));
-    }
-  }
-
-  Future<void> fetchdata() async {
-    try {
-      setState(() {
-        isLoading = true;
-      });
       final response = await supabase.from('tbl_model').select();
-
       setState(() {
-        isLoading = false;
-        modelList = response;
+        _modelList = List<Map<String, dynamic>>.from(response);
       });
     } catch (e) {
-      print('Error $e');
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Error')));
+      _showError('Error fetching models: $e');
+    } finally {
+      setState(() => _isLoading = false);
     }
   }
 
-  Future<void> delete(int id) async {
+  Future<void> _insertModel() async {
+    if (_formKey.currentState!.validate()) {
+      setState(() => _isLoading = true);
+      try {
+        await supabase.from("tbl_model").insert({
+          'model_name': _modelController.text,
+          'brand_id': _selectedBrand,
+          'type_id': _selectedType,
+        });
+        await _fetchModels();
+        _modelController.clear();
+        setState(() {
+          _selectedBrand = null;
+          _selectedType = null;
+        });
+        _showSuccess('Model inserted successfully');
+      } catch (e) {
+        _showError('Error inserting model: $e');
+      } finally {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _updateModel() async {
+    if (_formKey.currentState!.validate()) {
+      setState(() => _isLoading = true);
+      try {
+        await supabase.from('tbl_model').update({
+          'model_name': _modelController.text,
+          'brand_id': _selectedBrand,
+          'type_id': _selectedType,
+        }).eq('id', _editId);
+        await _fetchModels();
+        _modelController.clear();
+        setState(() {
+          _editId = 0;
+          _selectedBrand = null;
+          _selectedType = null;
+        });
+        _showSuccess('Model updated successfully');
+      } catch (e) {
+        _showError('Error updating model: $e');
+      } finally {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _deleteModel(int id) async {
+    setState(() => _isLoading = true);
     try {
       await supabase.from("tbl_model").delete().eq('id', id);
-
-      fetchdata();
-
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(' Deleted')));
+      await _fetchModels();
+      _showSuccess('Model deleted successfully');
     } catch (e) {
-      print('error $e');
+      _showError('Error deleting model: $e');
+    } finally {
+      setState(() => _isLoading = false);
     }
   }
 
-  int edit = 0;
-  Future<void> update() async {
-    try {
-      await supabase
-          .from('tbl_model')
-          .update({"model_name": _modelController.text}).eq("id", edit);
-      fetchdata();
-      _modelController.clear();
-      setState(() {
-        edit = 0;
-      });
-    } catch (e) {
-      print('error $e');
+  void _showSuccess(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), backgroundColor: Colors.green),
+      );
+    }
+  }
+
+  void _showError(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), backgroundColor: Colors.red),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      children: [
-        Padding(
-          padding: EdgeInsets.symmetric(
-            horizontal: 40,
-            vertical: 40,
-          ),
-          child: Form(
-              key: formkey,
-              child: Center(
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: DropdownButtonFormField(
-                          decoration: InputDecoration(
-                              border: OutlineInputBorder(),
-                              fillColor: Colors.white,
-                              filled: true,
-                              hintText: 'Brand'),
-                          value: selectedbrand,
-                          items: brandList.map((brand) {
-                            return DropdownMenuItem(
-                                value: brand['id'].toString(),
-                                child: Text(brand['brand_name'] ?? ""));
-                          }).toList(),
-                          onChanged: (value) {
-                            setState(() {
-                              selectedbrand = value!;
-                            });
-                          }),
-                        
-                    ),
-                    SizedBox(
-                      width: 10,
-                    ),Expanded(
-                      
-                      child: DropdownButtonFormField(
-                          decoration: InputDecoration(
-                              border: OutlineInputBorder(),
-                              fillColor: Colors.white,
-                              filled: true,
-                              hintText: 'Type'),
-                          value: selectedtype,
-                          items: typeList.map((Type) {
-                            return DropdownMenuItem(
-                                value:Type ['id'].toString(),
-                                child: Text(Type['type_name'] ?? ""));
-                          }).toList(),
-                          onChanged: (value) {
-                            setState(() {
-                              selectedtype = value!;
-                            });
-                          }), ),
-                    
-                    SizedBox(
-                      width: 10,
-                    ),
-                    Expanded(
-                        child: TextFormField(
-                      controller: _modelController,
-                      decoration: InputDecoration(
-                        hintText: 'Model',
-                        label: Text('Model'),
-                        fillColor: Colors.white,
-                        filled: true,
-                        border: OutlineInputBorder(),
-                      ),
-                    )),
-                    SizedBox(
-                      width: 10,
-                    ),
-                    ElevatedButton(
-                        onPressed: () {
-                          if (edit == 0) {
-                            insert();
-                          } else {
-                            update();
-                          }
-                        },
-                        child: Text('Submit'))
-                  ],
-                ),
-              )),
-        ),
+    final screenWidth = MediaQuery.of(context).size.width;
 
-        SizedBox(
-          height: 40,
-        ),
-        isLoading
-            ? Center(
-                child: CircularProgressIndicator(
-                color: Colors.white,
-              ))
-            : Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: 40,
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Form Section
+          Container(
+            width: screenWidth > 800 ? 990 : screenWidth * 0.5,
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.2),
+                  blurRadius: 15,
+                  spreadRadius: 5,
                 ),
-                child: Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(20),
-                      color: Colors.white54,
+              ],
+            ),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Manage Models',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blueGrey,
                     ),
-                    padding: EdgeInsets.all(20),
-                    child: ListView.separated(
-                        separatorBuilder: (context, index) {
-                          return Divider();
-                        },
-                        shrinkWrap: true,
-                        itemCount: modelList.length,
-                        itemBuilder: (context, index) {
-                          final _model = modelList[index];
-                          return ListTile(
-                              leading: Text(
-                                style: TextStyle(fontSize: 18),
-                                _model['model_name'] ?? "",
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          decoration: _inputDecoration('Brand', Icons.branding_watermark),
+                          value: _selectedBrand,
+                          items: _brandList.map((brand) {
+                            return DropdownMenuItem<String>(
+                              value: brand['id'].toString(),
+                              child: Text(brand['brand_name'] ?? 'Unknown'),
+                            );
+                          }).toList(),
+                          onChanged: (value) => setState(() => _selectedBrand = value),
+                          validator: (value) => value == null ? 'Please select a brand' : null,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          decoration: _inputDecoration('Type', Icons.directions_car),
+                          value: _selectedType,
+                          items: _typeList.map((type) {
+                            return DropdownMenuItem<String>(
+                              value: type['id'].toString(),
+                              child: Text(type['type_name'] ?? 'Unknown'),
+                            );
+                          }).toList(),
+                          onChanged: (value) => setState(() => _selectedType = value),
+                          validator: (value) => value == null ? 'Please select a type' : null,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: TextFormField(
+                          controller: _modelController,
+                          decoration: _inputDecoration('Model Name', Icons.precision_manufacturing),
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return 'Please enter a model name';
+                            }
+                            return null;
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      ElevatedButton(
+                        onPressed: _isLoading ? null : (_editId == 0 ? _insertModel : _updateModel),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blueGrey[700],
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        child: _isLoading
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                              )
+                            : Text(
+                                _editId == 0 ? 'Add Model' : 'Update Model',
+                                style: const TextStyle(color: Colors.white, fontSize: 16),
                               ),
-                              trailing: SizedBox(
-                                width: 80,
-                                child: Row(
+                      ),
+                    ],
+                  ),
+                  if (_editId != 0)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: TextButton(
+                        onPressed: () {
+                          setState(() {
+                            _modelController.clear();
+                            _selectedBrand = null;
+                            _selectedType = null;
+                            _editId = 0;
+                          });
+                        },
+                        child: const Text('Cancel Edit', style: TextStyle(color: Colors.red)),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          // Models List Section
+          Container(
+            
+            width: screenWidth > 800 ? 990 : screenWidth * 0.9,
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.2),
+                  blurRadius: 15,
+                  spreadRadius: 5,
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Model List',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blueGrey,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : _modelList.isEmpty
+                        ? Center(
+                            child: Text(
+                              'No models found',
+                              style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                            ),
+                          )
+                        : ListView.separated(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            separatorBuilder: (context, index) => const Divider(height: 1, color: Colors.grey),
+                            itemCount: _modelList.length,
+                            itemBuilder: (context, index) {
+                              final model = _modelList[index];
+                              final brandName = _brandList
+                                      .firstWhere((b) => b['id'].toString() == model['brand_id'].toString(),
+                                          orElse: () => {'brand_name': 'Unknown'})['brand_name'] ??
+                                  'Unknown';
+                              final typeName = _typeList
+                                      .firstWhere((t) => t['id'].toString() == model['type_id'].toString(),
+                                          orElse: () => {'type_name': 'Unknown'})['type_name'] ??
+                                  'Unknown';
+                              return ListTile(
+                                contentPadding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                                title: Text(
+                                  model['model_name'] ?? 'Unnamed',
+                                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blueGrey),
+                                ),
+                                subtitle: Text(
+                                  'Brand: $brandName | Type: $typeName',
+                                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                                ),
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
                                   children: [
                                     IconButton(
-                                        onPressed: () {
-                                          delete(_model['id']);
-                                        },
-                                        icon: Icon(Icons.delete_outline)),
+                                      icon: const Icon(Icons.edit, color: Colors.blueGrey),
+                                      onPressed: () {
+                                        setState(() {
+                                          _modelController.text = model['model_name'];
+                                          _selectedBrand = model['brand_id'].toString();
+                                          _selectedType = model['type_id'].toString();
+                                          _editId = model['id'];
+                                        });
+                                      },
+                                      tooltip: 'Edit',
+                                    ),
                                     IconButton(
-                                        onPressed: () {
-                                          setState(() {
-                                            _modelController.text =
-                                                _model['model_name'];
-                                            edit = _model['id'];
-                                          });
-                                        },
-                                        icon: Icon(Icons.edit))
+                                      icon: const Icon(Icons.delete, color: Colors.red),
+                                      onPressed: () => _deleteModel(model['id']),
+                                      tooltip: 'Delete',
+                                    ),
                                   ],
                                 ),
-                              ));
-                        })),
-              )
-      ],
+                              );
+                            },
+                          ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
+  }
+
+  InputDecoration _inputDecoration(String label, IconData icon) {
+    return InputDecoration(
+      labelText: label,
+      prefixIcon: Icon(icon, color: Colors.blueGrey),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+      filled: true,
+      fillColor: Colors.grey[100],
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: Colors.blueGrey, width: 2),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _modelController.dispose();
+    super.dispose();
   }
 }

@@ -1,97 +1,162 @@
 import 'package:flutter/material.dart';
 import 'package:seller/login.dart';
 import 'package:seller/registationscreen.dart';
- 
+
 class Sskipscreen extends StatefulWidget {
   const Sskipscreen({super.key});
 
   @override
-  State<Sskipscreen> createState() => _SkipscreenState();
+  State<Sskipscreen> createState() => _SskipscreenState();
 }
 
-class _SkipscreenState extends State<Sskipscreen> {
+class _SskipscreenState extends State<Sskipscreen> {
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Center(
-        child: Container(
-          width: double.infinity,
-          height: double.infinity,
-          // BoxDecoration(color: const Color.fromARGB(109, 154, 96, 96)),
-          decoration: BoxDecoration(
-              image: DecorationImage(
-                  image: AssetImage('assets/skipscreen.jpeg'),
-                  fit: BoxFit.cover)),
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
 
+    return Scaffold(
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/skipscreen.jpeg'),
+            fit: BoxFit.cover,
+            colorFilter: ColorFilter.mode(
+              Colors.black54,
+              BlendMode.darken,
+            ),
+          ),
+        ),
+        child: Center(
           child: Container(
-            padding: EdgeInsets.symmetric( vertical: 20, horizontal: 400),
-            decoration:
-                BoxDecoration(color: const Color.fromARGB(182, 0, 0, 0)),
+            width: screenWidth > 1000 ? 800 : screenWidth * 0.9,
+            constraints: BoxConstraints(
+              minHeight: 450,
+              maxHeight: screenHeight * 0.8,
+            ),
+            margin: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(40),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.2),
+                  blurRadius: 15,
+                  offset: const Offset(0, 5),
+                ),
+              ],
+              border: Border.all(
+                color: Colors.white.withOpacity(0.2),
+                width: 1,
+              ),
+            ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Text(
-                  "Welcome to  Our Comunity",
+                // Logo added here
+                Container(
+                  width: 150,
+                  height: 150,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white.withOpacity(0.2),
+                  ),
+                  child: ClipOval(
+                    child: Image.asset(
+                      'assets/loginimage.jpg', // Replace with your actual logo filename
+                      fit: BoxFit.contain,
+                      width: 120,
+                      height: 120,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 30),
+                const Text(
+                  "Welcome to Our Seller Community",
                   style: TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
-                    fontSize: 45,
+                    fontSize: 36,
+                    letterSpacing: 1.2,
                   ),
                   textAlign: TextAlign.center,
                 ),
-                SizedBox(
-                  height: 30,
-                ),
-                Text(
-                  
-                  "  An online market for auto spare parts is a digital platform  where  customers can easily  the automotive parts  and accessories.allowing car owners, repair shops,and mechanics   to find specific parts for vehicles without visiting  physical stores.check product specifications",
+                const SizedBox(height: 24),
+                const Text(
+                  "Join our online marketplace for auto spare parts - a digital platform where sellers can showcase automotive parts and accessories to car owners, repair shops, and mechanics. Reach customers effortlessly and grow your business!",
                   style: TextStyle(
-                      color: Colors.white, fontWeight: FontWeight.bold ,fontSize:15),
-                      textAlign: TextAlign.center,
-                ),
-                SizedBox(
-                  height: 15,
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal:60.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Expanded(
-                        child: ElevatedButton(
-                         style: ElevatedButton.styleFrom(backgroundColor:const Color.fromARGB(255, 139, 137, 143) ),
-                        
-                          onPressed: () {
-                            Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => Loginscreen(),
-                                ));
-                          },
-                          child: Text("Login Page",style: TextStyle(color:Colors.black),),
-                        ),
-                      ),
-                      SizedBox(
-                        width: 30,
-                      ),
-                      Expanded(
-                        child: ElevatedButton(
-                           style: ElevatedButton.styleFrom(backgroundColor:const Color.fromARGB(255, 139, 137, 143) ),
-                        
-                          onPressed: () {
-                            Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) =>Registationscreen(),
-                                ));
-                          },
-                          child: Text("Signup Page",style: TextStyle(color:Colors.black),),
-                          
-                        ),
-                      ),
-                    ],
+                    color: Colors.white70,
+                    fontSize: 16,
+                    height: 1.5,
                   ),
-                )
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 40),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    return Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const Loginscreen(),
+                                ),
+                              );
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blueAccent,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              elevation: 5,
+                              textStyle: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            child: const Text("Login as Seller"),
+                          ),
+                        ),
+                        const SizedBox(width: 20),
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const Registationscreen(),
+                                ),
+                              );
+                            },
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.white,
+                              side: const BorderSide(color: Colors.white, width: 2),
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              textStyle: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            child: const Text("Join as Seller"),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
               ],
             ),
           ),
